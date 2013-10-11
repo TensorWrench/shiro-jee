@@ -1,0 +1,9 @@
+.classpath
+.gradle
+.project
+.settings
+/build
+/bin
+/.nb-gradle
+/.nb-gradle-properties
+/test-output

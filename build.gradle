@@ -1,0 +1,207 @@
+/*
+ Copyright 2013 TensorWrench, LLC 
+ Licensed under the Apache License, Version 2.0 (the "License"); 
+ you may not use this file except in compliance with the License. 
+ You may obtain a copy of the License at 
+ http://www.apache.org/licenses/LICENSE-2.0 
+ Unless required by applicable law or agreed to in writing, software 
+ distributed under the License is distributed on an "AS IS" BASIS, 
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. 
+ See the License for the specific language governing permissions and 
+ limitations under the License.
+ */
+apply plugin: 'java'
+apply plugin: 'eclipse'
+apply plugin: 'pmd'
+apply from:"file:src/gradle/emma.gradle"
+apply from:"file:src/gradle/backgroundTask.gradle"
+apply plugin: 'maven'
+apply plugin: 'signing'
+
+//===============================================
+// Project settings
+//===============================================
+ext {
+	testngVersion='6.8'
+	shiroVersion='1.2.+'
+	javaeeApiVersion='6+'
+	arquillianVersion="1.0.3.Final"
+	shrinkwrapResolverVersion="2.0.0"
+
+	openejbVersion="4.+"
+	tomeeVersion="1.5.+"
+}
+
+version = '0.1.0'
+group 'com.tensorwrench.shiro'
+sourceCompatibility = 1.7
+
+if(!hasProperty("repoUrl")) {
+	ext.repoUrl="${buildDir}/mvnRepo"
+}
+//===============================================
+// Build Tools
+//===============================================
+buildscript {
+	repositories {  mavenCentral()  }
+}
+
+//===============================================
+// Dependency info
+//===============================================
+repositories {
+	mavenLocal()
+	mavenCentral()
+}
+
+configurations {
+	provided
+	arquillianOpenEJB.extendsFrom testRuntime
+	arquillianTomeeEmbedded.extendsFrom testRuntime
+	arquillianTomeeRemote.extendsFrom testRuntime
+
+}
+
+sourceSets {
+	main { compileClasspath += configurations.provided }
+}
+
+dependencies {
+	compile(
+			"org.apache.shiro:shiro-core:${shiroVersion}"
+			,"org.apache.shiro:shiro-web:${shiroVersion}"
+			)
+
+	provided(
+			"org.apache.openejb:javaee-api:${javaeeApiVersion}"
+			)
+
+	testCompile(
+			"org.testng:testng:${testngVersion}"
+			,"org.jboss.arquillian.testng:arquillian-testng-container:${arquillianVersion}"
+			,"org.jboss.shrinkwrap.resolver:shrinkwrap-resolver-depchain:${shrinkwrapResolverVersion}"
+			,'org.jboss.shrinkwrap.descriptors:shrinkwrap-descriptors-impl-javaee:2.0.0-alpha-5'
+			,"org.apache.openejb:ziplock:${tomeeVersion}"
+			,"org.easymock:easymock:3.1"
+			)
+
+	arquillianOpenEJB(
+			"org.apache.openejb:arquillian-openejb-embedded-4:${openejbVersion}"
+			,"org.apache.openejb:openejb-cxf-rs:${openejbVersion}"
+			)
+	arquillianTomeeEmbedded(
+			"org.apache.openejb:arquillian-tomee-embedded:${tomeeVersion}"
+			,"org.apache.openejb:tomee-jaxrs:${tomeeVersion}"
+			)
+	arquillianTomeeRemote("org.apache.openejb:arquillian-tomee-remote:${tomeeVersion}")
+
+	emma "emma:emma:2.0.5312", "emma:emma_ant:2.0.5312"
+}
+
+//===============================================
+// Project Overhead
+//===============================================
+task wrapper(type: Wrapper) { gradleVersion="1.6" }
+
+eclipse.classpath {
+	downloadJavadoc = true
+	downloadSources = true
+	defaultOutputDir = file("$buildDir/build-eclipse")
+	plusConfigurations +=configurations.provided
+	noExportConfigurations += configurations.provided
+}
+
+//===============================================
+// Documentation
+//===============================================
+
+javadoc {
+	source=sourceSets.main.allJava
+	destinationDir = reporting.file("javadocs")
+	classpath += configurations.provided
+}
+
+//===============================================
+// Testing
+//===============================================
+test {
+	useTestNG() {
+
+	}
+	classpath += configurations.arquillianTomeeEmbedded
+}
+
+//==========================================================================
+// Artifact Information
+//==========================================================================
+jar {
+	manifest {
+		attributes 'Title': 'shiro-mongodb-realm',
+				'Version': version
+	}
+}
+
+task sourcesJar(type: Jar, dependsOn:classes) {
+	classifier = 'sources'
+	from sourceSets.main.allSource
+}
+
+task javadocJar(type: Jar, dependsOn:javadoc) {
+	classifier = 'javadoc'
+	from javadoc.destinationDir
+}
+
+artifacts {
+	archives(sourcesJar)
+	archives(javadocJar)
+}
+
+signing { sign configurations.archives }
+
+def customizePom(pom) {
+	pom.project {
+		packaging "jar"
+		name "shiro-jee"
+		description "JEE integration for Apache Shiro"
+		url "https://github.com/TensorWrench/shiro-jee"
+		scm {
+			connection "scm:git:https://github.com/TensorWrench/shiro-jee"
+			url "https://github.com/TensorWrench/shiro-jee"
+		}
+		developers {
+			developer {
+				id "jason"
+				name "Jason Wagner"
+			}
+		}
+		licenses {
+			license {
+				name 'The Apache Software License, Version 2.0'
+				url 'http://www.apache.org/licenses/LICENSE-2.0.txt'
+				distribution 'repo'
+			}
+		}
+	}
+}
+
+install {
+	repositories.mavenInstaller {
+		pom.groupId = project.group
+		customizePom(pom)
+	}
+}
+
+uploadArchives {
+	repositories {
+		mavenDeployer {
+			beforeDeployment { MavenDeployment deployment -> signing.signPom(deployment) }
+
+			repository(url: "https://oss.sonatype.org/service/local/staging/deploy/maven2/") {
+				authentication(userName: sonatypeUsername, password: sonatypePassword)
+			}
+
+			pom.groupId = project.group
+			customizePom(pom)
+		}
+	}
+}
