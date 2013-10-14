@@ -1,0 +1,71 @@
+repositories {
+	mavenRepo url: 'http://repository.jboss.org/nexus/content/groups/public'
+	mavenRepo url: 'http://repository.jboss.org/nexus/content/repositories/deprecated'
+}
+
+configurations {
+	arquillianOpenEJB.extendsFrom testRuntime
+	arquillianTomeeEmbedded.extendsFrom testRuntime
+	arquillianTomeeRemote.extendsFrom testRuntime
+	
+	arquillianWeldEmbedded.extendsFrom testRuntime
+	arquillianGlashFishEmbedded.extendsFrom testRuntime
+	arquillianJbossAS7.extendsFrom testRuntime
+}
+
+
+dependencies {
+	testCompile(
+			"org.testng:testng:${testngVersion}"
+			,"org.jboss.arquillian.testng:arquillian-testng-container:${arquillianVersion}"
+			,"org.jboss.shrinkwrap.resolver:shrinkwrap-resolver-depchain:${shrinkwrapResolverVersion}"
+			,"org.jboss.shrinkwrap.descriptors:shrinkwrap-descriptors-impl-javaee:${shrinkwrapDescriptorVersion}"
+			,"org.apache.openejb:ziplock:${tomeeVersion}"
+			,"org.slf4j:slf4j-api:1.7.+"
+			
+			)
+	testRuntime(
+		"org.slf4j:slf4j-simple:1.7.+"
+	)
+	arquillianOpenEJB(
+			"org.apache.openejb:arquillian-openejb-embedded-4:${openejbVersion}"
+			,"org.apache.openejb:openejb-cxf-rs:${openejbVersion}"
+			)
+	arquillianTomeeEmbedded(
+			"org.apache.openejb:arquillian-tomee-embedded:${tomeeVersion}"
+			,"org.apache.openejb:tomee-jaxrs:${tomeeVersion}"
+			)
+	arquillianTomeeRemote("org.apache.openejb:arquillian-tomee-remote:${tomeeVersion}")
+	
+	arquillianWeldEmbedded(
+		"org.jboss.arquillian.container:arquillian-weld-ee-embedded-1.1:1.0.0-CR3"
+//		,"org.jboss.spec:jboss-javaee-6.0:1.0.0.Final"
+		,"org.jboss.weld:weld-core:1.1.1-FINAL"
+		)
+//	weldEmbeddedTestRuntime group: 'org.jboss.spec', name: 'jboss-javaee-6.0', version: libraryVersions.jbossJavaeeSpec
+//	weldEmbeddedTestRuntime group: 'org.slf4j', name: 'slf4j-log4j12', version: libraryVersions.slf4j
+//	weldEmbeddedTestRuntime group: 'log4j', name: 'log4j', version: libraryVersions.log4j
+	
+	
+	arquillianGlashFishEmbedded(
+		"org.jboss.arquillian.container:arquillian-glassfish-embedded-3.1:1.0.0.CR4"
+		,"org.glassfish.main.extras:glassfish-embedded-all:4.0"
+	)
+	
+	arquillianJbossAS7(
+		"org.jboss.as:jboss-as-arquillian-container-managed:7.1.1.Final"
+		,"org.jboss.spec:jboss-javaee-6.0:1.0.0.Final"
+	)
+	
+}
+
+
+
+configurations.matching({ t-> t.name.startsWith("arquillian") } as Spec).each { t ->
+	def taskName=t.name.replace("arquillian", "test")
+	task(taskName,type: Test) {
+		useTestNG()
+		testClassesDir = sourceSets.test.output.classesDir
+		classpath += t
+	}
+}

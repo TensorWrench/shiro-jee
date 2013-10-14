@@ -1,0 +1,8 @@
+repositories {
+	mavenLocal()
+	mavenCentral()
+}
+dependencies {
+	classpath "com.tensorwrench.gradle:gradle-emma-plugin:+"
+}
+
